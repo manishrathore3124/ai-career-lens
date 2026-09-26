@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile       Profile?
+  resumes       Resume[]
+  jobs          Job[]
+  analyses      JobAnalysis[]
+  roadmaps      Roadmap[]
+  interviewSessions InterviewSession[]
+}
+
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  targetRole    String?
+  bio           String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Resume {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fileName      String
+  rawText       String    @db.Text
+
+  summary       String?   @db.Text
+  education     String?   @db.Text
+  experience    String?   @db.Text
+  projects      String?   @db.Text
+  certifications String?  @db.Text
+  achievements  String?   @db.Text
+
+  skills        ResumeSkill[]
+  analyses      JobAnalysis[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Skill {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  category      String?
+
+  aliases       SkillAlias[]
+  resumeSkills  ResumeSkill[]
+  jobSkills     JobSkill[]
+
+  createdAt     DateTime  @default(now())
+}
+
+model SkillAlias {
+  id            String    @id @default(cuid())
+  alias         String    @unique
+  skillId       String
+  skill         Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+}
+
+model ResumeSkill {
+  id            String    @id @default(cuid())
+  resumeId      String
+  resume        Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  skillId       String
+  skill         Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+
+  @@unique([resumeId, skillId])
+}
+
+model Job {
+  id                String     @id @default(cuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title             String
+  company           String?
+  location          String?
+  rawDescription    String     @db.Text
+
+  experienceRequired String?
+  educationRequired  String?
+  responsibilities   String?   @db.Text
+
+  skills            JobSkill[]
+  analyses          JobAnalysis[]
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+model JobSkill {
+  id            String    @id @default(cuid())
+  jobId         String
+  job           Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  skillId       String
+  skill         Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  isRequired    Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+
+  @@unique([jobId, skillId])
+}
+
+model JobAnalysis {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resumeId            String
+  resume              Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  jobId               String
+  job                 Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  overallScore        Int
+  skillCoverageScore  Int
+
+  matchedSkills       String[]
+  missingSkills       String[]
+
+  createdAt           DateTime @default(now())
+}
+
+model Roadmap {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analysisId    String?
+  title         String
+
+  steps         RoadmapStep[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model RoadmapStep {
+  id            String    @id @default(cuid())
+  roadmapId     String
+  roadmap       Roadmap   @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  skillName     String
+  order         Int
+  priority      String
+  estimatedWeeks Int
+  isCompleted   Boolean   @default(false)
+
+  createdAt     DateTime  @default(now())
+}
+
+model Document {
+  id          String          @id @default(cuid())
+  title       String
+  category    String?
+  source      String?
+
+  chunks      DocumentChunk[]
+
+  createdAt   DateTime        @default(now())
+}
+
+model DocumentChunk {
+  id          String    @id @default(cuid())
+  documentId  String
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  content     String    @db.Text
+  chunkIndex  Int
+  embedding   Unsupported("vector(384)")?
+
+  createdAt   DateTime  @default(now())
+}
+
+model InterviewSession {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobId         String?
+  title         String
+
+  questions     InterviewQuestion[]
+
+  createdAt     DateTime          @default(now())
+}
+
+model InterviewQuestion {
+  id            String            @id @default(cuid())
+  sessionId     String
+  session       InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  question      String            @db.Text
+  skillArea     String
+
+  userAnswer    String?           @db.Text
+  feedback      String?           @db.Text
+
+  createdAt     DateTime          @default(now())
+}
