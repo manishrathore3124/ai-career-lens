@@ -1,0 +1,41 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: careerlens_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: careerlens
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  ai-service:
+    build: ./ai-service
+    container_name: careerlens_ai
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    depends_on:
+      - db
+
+  web:
+    build: ./web
+    container_name: careerlens_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/careerlens?schema=public
+      AUTH_SECRET: ${AUTH_SECRET}
+      AI_SERVICE_URL: http://ai-service:8000
+    depends_on:
+      - db
+      - ai-service
+
+volumes:
+  pgdata:
